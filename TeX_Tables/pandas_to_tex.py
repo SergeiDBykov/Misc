@@ -138,9 +138,12 @@ def save_latex_table(df_tex,savepath='./log.tex',
             columns_to_write=list(df_tex.columns.values)
             columns_names=columns_to_write
 
+
+
         df_tex=df_tex[columns_to_write]
         new_names=dict(zip(columns_to_write,columns_names))
         df_tex=df_tex.rename(columns=new_names)
+        df_tex.reset_index(inplace=True,drop=True)
         df_tex=df_tex.transpose()
 
         return df_tex.to_latex(buf=savepath,escape = False, index = transpose,

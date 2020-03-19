@@ -10,6 +10,7 @@ import astropy.io.fits as fits
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import fsolve
+from progress.bar import IncrementalBar
 day2sec=86400
 try:
     del e
@@ -94,7 +95,7 @@ def _kepler_solution(time,orb_params):
     return rsini,v,V_R,doppler_factor,z
 
 
-def kepler_solution(times,orb_params,progress=1):
+def kepler_solution(times,orb_params):
     '''
     One cannot use time as array in _kepler_solution because of
     numerical solution of an equation
@@ -112,6 +113,7 @@ def kepler_solution(times,orb_params,progress=1):
     arr_z=np.zeros(N)
 
 
+
     for i in range(N):
         rsini,v,V_R,doppler_factor,z=_kepler_solution(times[i],orb_params)
         arr_rsini[i]=rsini
@@ -119,9 +121,8 @@ def kepler_solution(times,orb_params,progress=1):
         arr_V_R[i]=V_R
         arr_doppler_factor[i]=doppler_factor
         arr_z[i]=z
-        if progress:
-            if np.floor(i/N*100)%5 == 0.0:
-                print(f'{np.floor(i/N*100)} %')
+        if np.floor(i/N*100)%5 == 0.0:
+            print(f'{np.floor(i/N*100)} %')
 
     return arr_rsini, arr_v, arr_V_R, arr_doppler_factor, arr_z
 
@@ -183,7 +184,7 @@ def correct_times(fitsfile,orb_params,time_orig_col='time'):
 
     time_orig_mjd=(ff[1].data[time_orig_col]+timezero)/86400+mjdreff+mjdrefi #barycentred time in MJD units
 
-    _,_,_,_,dt=kepler_solution(time_orig_mjd*day2sec,orb_params,progress=1)
+    _,_,_,_,dt=kepler_solution(time_orig_mjd*day2sec,orb_params)
     new_time=time_orig_mjd*day2sec-dt
     with fits.open(filepath+'/'+new_filename, mode='update') as hdul:
         hdul[0].header.comments['timesys']='tbd with orb correction'

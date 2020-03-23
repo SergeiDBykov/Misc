@@ -95,6 +95,8 @@ def my_crosscorr(x,y1,y2,ax1,ax2,
         #my_tdelay *=binsize
         ax2.axvline(my_tdelay,color='r',alpha=0.5,label=f'lag {"{0:.2f}".format(my_tdelay)} sec')
         ax2.legend()
+    else:
+        my_tdelay=0
 
     ax2.plot()
     ax2.grid()

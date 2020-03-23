@@ -47,6 +47,8 @@ def latex_format(val,funct=lambda x:x,k=3):
     '''
     used for values for which errors are unknown/not necessary
     '''
+    if isinstance(val, str):
+        return val
     if np.isnan(val):
         return None
     if type(val) is  str:

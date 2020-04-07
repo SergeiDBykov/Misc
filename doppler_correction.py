@@ -55,6 +55,9 @@ def _kepler_solution(time,orb_params):
     asini- semi major axis projection, lt-sec
     w - longitude of periastron, rad
     T_p - periastron passage time, in seconds
+    returns: rsini,v(angle),v_R(rad velocity),dopplef factor, z coordinate
+    Peiod_observed=factor* Period_real; Period_real=Period_observad/factor
+    => freq_obs=freq_real/factor; f_real=factor*freq_obs.  !!!! V_r might be negative !!!!!
     '''
     P=orb_params['P']
     e=orb_params['e']
@@ -100,6 +103,14 @@ def kepler_solution(times,orb_params):
     One cannot use time as array in _kepler_solution because of
     numerical solution of an equation
     This procedure return and array of interesting kepler values for an input array
+    P- binary orbit, in seconds
+    e-eccentricity
+    asini- semi major axis projection, lt-sec
+    w - longitude of periastron, rad
+    T_p - periastron passage time, in seconds
+    returns: rsini,v(angle),v_R(rad velocity),dopplef factor, z coordinate
+    Peiod_observed=factor* Period_real; Period_real=Period_observad/factor
+    => freq_obs=freq_real/factor; f_real=factor*freq_obs.  !!!! V_r might be negative !!!!!
     '''
     if not hasattr(times, "__len__"):
         times=np.array([times])

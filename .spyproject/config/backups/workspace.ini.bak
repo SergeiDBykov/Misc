@@ -6,5 +6,5 @@ save_non_project_files = False
 
 [main]
 version = 0.2.0
-recent_files = ['TimeSeries/stingray_test.py', '../../../../../../opt/anaconda3/lib/python3.7/site-packages/stingray/crossspectrum.py']
+recent_files = ['TimeSeries/stingray_test.py', '../../../../../../opt/anaconda3/lib/python3.7/site-packages/stingray/crossspectrum.py', 'TimeSeries/cross_corr.py']
 

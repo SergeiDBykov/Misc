@@ -13,39 +13,29 @@ from scipy import  stats
 from scipy.optimize import curve_fit
 import pandas as pd
 from scipy.stats import pearsonr
+from scipy.ndimage.interpolation import shift
 
+def my_ccf(x,y1,y2):
+    lags=np.arange(len(x)-1)
+    def my_wrap_zero_padd(y1,y2,lags):
+        def my_roll(y,lag):
+            tmp=np.roll(y,lag)
+            if lag<=0:
+                tmp[lag:]=0
+            else:
+                tmp[0:lag]=0
+            return tmp
+        #my_roll=np.roll
+        return np.array([pearsonr(my_roll(y1,-lag),y2)[0] for lag in lags])
+    return lags,my_wrap_zero_padd(y1, y2, lags)
 
-def my_wrap_ccf(x,y1,y2,only_pos_delays=1):
-    lags=np.arange(len(x))
+def periodic_corr(x, y):
+    """Periodic correlation, implemented using the FFT.
 
-    def my_wrap_pos(y1,y2,lags):
-        return np.array([pearsonr(np.roll(y1,-lag),y2)[0] for lag in lags])
-    def my_wrap_neg(y1,y2,lags):
-        return np.array([pearsonr(np.roll(y1,lag),y2)[0] for lag in lags])
-    def my_wrap(y1,y2,lags):
-        return np.concatenate((my_wrap_neg(y1,y2,lags),my_wrap_pos(y1,y2,lags)))
+    x and y must be real sequences with the same length.
+    """
+    return ifft(fft(x) * fft(y).conj()).real
 
-#    def my_wrap_zero_padd(y1,y2,lags):
-#        def my_roll(y,lag):
-#            tmp=np.roll(y,lag)
-#            if lag<=0:
-#                tmp[lag:]=0
-#            else:
-#                tmp[0:lag]=0
-#            return tmp
-#
-#        return np.array([pearsonr(my_roll(y1,-lag),y2)[0] for lag in lags])
-
-    if only_pos_delays:
-        ccf=my_wrap_pos(y1,y2,lags)
-        delay=x[lags]
-    else:
-        ccf=my_wrap(y1,y2,lags)
-        delay=np.concatenate((-x[lags],x[lags]))
-    args=delay.argsort()
-    return delay[args],ccf[args]
-    #return x[lags],np.array([pearsonr(np.roll(y1,-lag),y2)[0] for lag in lags])
-    #return x[lags],np.array([pearsonr(np.concatenate((np.roll(x,-lag)[0:len(x)-lag],np.zeros(lag))),y2)[0] for lag in lags])
 
 
 def my_crosscorr(x,y1,y2,ax1,ax2,
@@ -66,7 +56,9 @@ def my_crosscorr(x,y1,y2,ax1,ax2,
         ax1.set_ylabel('signal')
         ax1.grid()
     if ax1==None:
-        pass
+        fig,[ax1,ax2]=plt.subplots(2,1)
+        fig.subplots_adjust(hspace=0.5)
+
 
     if divide_by_mean:
         y1=y1/np.mean(y1)
@@ -115,35 +107,119 @@ def my_crosscorr(x,y1,y2,ax1,ax2,
     ax2.axvline(tdelay,color='b',alpha=0.5,label=f'lag {"{0:.2f}".format(tdelay)} sec')
     ax2.legend()
 
+    plt.show()
+
     return np.array([tdelay,my_tdelay]),lag*binsize,corr
 
-#
-#
-##def crosscorr(datax, datay, lag=0, wrap=False):
-##    """ Lag-N cross correlation.
-##    Shifted data filled with NaNs
-##
-##    Parameters
-##    ----------
-##    lag : int, default 0
-##    datax, datay : pandas.Series objects of equal length
-##    Returns
-##    ----------
-##    crosscorr : float
-##    """
-##    if wrap:
-##        shiftedy = datay.shift(lag)
-##        shiftedy.iloc[:lag] = datay.iloc[-lag:].values
-##        return datax.corr(shiftedy)
-##    else:
-##        return datax.corr(datay.shift(lag))
-#
-#
-#
-#stop
-#
-#
-#%% test
+
+
+def cross_correlation(x,y1,y2,
+                      circular=1,
+                      divide_by_mean=1, subtract_mean=1):
+    dx=np.median(np.diff(x))
+
+    if divide_by_mean:
+        y1=y1/np.mean(y1)
+        y2=y2/np.mean(y2)
+
+    if subtract_mean:
+        y1=y1-np.mean(y1)
+        y2=y2-np.mean(y2)
+
+    lags_index=np.arange(len(y1))
+    if circular:
+        ccf_pos=np.array([stats.pearsonr(y1,np.roll(y2,lag))[0] for lag in lags_index])
+
+        ccf_neg=np.array([stats.pearsonr(y1,np.roll(y2,lag))[0] for lag in -lags_index])
+
+        ccf=np.concatenate((ccf_neg,ccf_pos))
+
+        lags=np.concatenate((-lags_index[lags_index],lags_index[lags_index]))*dx
+
+        tmp = lags.argsort()
+        return lags[tmp],ccf[tmp]
+    if not circular:
+        # def my_roll(y,lag):
+        #     tmp=np.roll(y,lag)
+        #     if lag<=0:
+        #         tmp[lag:]=0
+        #     else:
+        #         tmp[0:lag]=0
+        #     return tmp
+
+        # ccf_pos=np.array([stats.pearsonr(y1,my_roll(y2,lag))[0] for lag in lags_index])
+
+        # ccf_neg=np.array([stats.pearsonr(y1,my_roll(y2,lag))[0] for lag in -lags_index])
+
+        # ccf=np.concatenate((ccf_neg,ccf_pos))
+
+        # lags=np.concatenate((-lags_index[lags_index],lags_index[lags_index]))*dx
+
+        # tmp = lags.argsort()
+
+        def xcorr(x, y, normed=True, maxlags=10):
+            # Cross correlation of two signals of equal length
+            # Returns the coefficients when normed=True
+            # Returns inner products when normed=False
+            # Usage: lags, c = xcorr(x,y,maxlags=len(x)-1)
+            # Optional detrending e.g. mlab.detrend_mean
+            #https://github.com/colizoli/xcorr_python
+
+            Nx = len(x)
+            if Nx != len(y):
+                raise ValueError('x and y must be equal length')
+
+
+            c = np.correlate(x, y, mode='full')
+
+            if normed:
+                n = np.sqrt(np.dot(x, x) * np.dot(y, y)) # this is the transformation function
+                c = np.true_divide(c,n)
+
+            if maxlags is None:
+                maxlags = Nx - 1
+
+            if maxlags >= Nx or maxlags < 1:
+                raise ValueError('maglags must be None or strictly '
+                                 'positive < %d' % Nx)
+
+            lags = np.arange(-maxlags, maxlags + 1)
+            c = c[Nx - 1 - maxlags:Nx + maxlags]
+            return lags, c
+
+        lags,ccf=xcorr(y1,y2,maxlags=len(y1)-1)
+        plt.cla()
+        lags=lags*dx
+        return lags,ccf
+
+
+
+#%%test
+if __name__=='main':
+    x=np.linspace(0,2,1000)*np.pi
+    y1=np.sin(x)
+    y2=np.cos(x)
+    dt=np.median(np.diff(x))
+    fig,[ax1,ax2]=plt.subplots(2,1)
+    fig.subplots_adjust(hspace=0.5)
+    ax1.plot(x,y1,x,y2)
+    np_lag,np_corr,_,_=ax2.xcorr(y1,y2,maxlags=len(y1)-1,lw=2,usevlines=False,ls='-')
+    ax2.cla()
+
+
+    plt.show()
+
+    lag,ccf=cross_correlation(x, y1, y2,circular=0)
+
+    ax2.plot(lag,ccf,'g-.',ms=1)
+
+    lag,ccf=cross_correlation(x, y1, y2,circular=1)
+
+    ax2.plot(lag,ccf,'m-.',ms=1)
+    ax2.plot(np_lag*dt,np_corr,'b-.')
+
+
+#%% test 2
 
 if __name__=='main':
     ObsID='90089-11-04-02G'#90427-01-03-12 90427-01-03-11  90089-11-03-03  90089-11-02-06 90089-11-02-05

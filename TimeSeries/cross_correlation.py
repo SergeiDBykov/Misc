@@ -19,6 +19,12 @@ from scipy.ndimage.interpolation import shift
 def cross_correlation(x,y1,y2,
                       circular=1,
                       divide_by_mean=1, subtract_mean=1):
+    '''
+    Computes ccf of two timeseries.
+    lags are those of the second array relative to the first. I.E.
+    peaking on the negative delays means that the seconds LAGS the first
+    peaking on the positive values means that the second precedes the first
+    '''
     dx=np.median(np.diff(x))
 
     if divide_by_mean:

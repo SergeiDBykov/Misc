@@ -21,15 +21,16 @@ def _tex_error(par, Min, Max, funct = lambda x:x, k = 2, ):
 
     par,Min,Max=funct(par),funct(Min),funct(Max)
 
+
     low = f'%.{k}f' %(par - Min)
     hi  = f'%.{k}f' %(Max - par)
     parr = f'%.{k}f' %(par)
 
-
+    if float(Min) == float(Max) and float(Min)==0:
+        par_tex = '$' + parr + '$'
+        return par_tex
     if hi==low:
         par_tex = '$' + parr + '\pm' + hi + '$'
-        if float(hi) == 0.0:
-            par_tex = '$' + parr + '$'
     else:
         par_tex = '$' + parr + '^{+' + hi + '}_{-' + low + '}$'
     return par_tex

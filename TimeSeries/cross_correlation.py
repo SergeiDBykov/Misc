@@ -126,6 +126,134 @@ class CrossCorrelation():
 
 
 
+
+
+if __name__=='main':
+
+    import numpy, scipy.optimize
+
+    def fit_sin(tt, yy):
+        '''Fit sin to the input time sequence, and return fitting parameters "amp", "omega", "phase", "offset", "freq", "period" and "fitfunc"'''
+        tt = numpy.array(tt)
+        yy = numpy.array(yy)
+        ff = numpy.fft.fftfreq(len(tt), (tt[1]-tt[0]))   # assume uniform spacing
+        Fyy = abs(numpy.fft.fft(yy))
+        guess_freq = abs(ff[numpy.argmax(Fyy[1:])+1])   # excluding the zero frequency "peak", which is related to offset
+        guess_amp = numpy.std(yy) * 2.**0.5
+        guess_offset = numpy.mean(yy)
+        guess = numpy.array([guess_amp, 2.*numpy.pi*guess_freq, 0., guess_offset])
+
+        def sinfunc(t, A, w, p, c):  return A * numpy.sin(w*t + p) + c
+        popt, pcov = scipy.optimize.curve_fit(sinfunc, tt, yy, p0=guess)
+        A, w, p, c = popt
+        f = w/(2.*numpy.pi)
+        fitfunc = lambda t: A * numpy.sin(w*t + p) + c
+        return {"amp": A, "omega": w, "phase": p, "offset": c, "freq": f, "period": 1./f, "fitfunc": fitfunc, "maxcov": numpy.max(pcov), "rawres": (guess,popt,pcov)}
+
+    #data=np.genfromtxt('/Users/s.bykov/work/xray_pulsars/rxte/results/out90089-11-03-01G/products/fasebin/cutoffpl/ph_res_cutoffpl.dat')
+    data=np.genfromtxt('/Users/s.bykov/work/xray_pulsars/rxte/results/out90427-01-03-02/products/fasebin/cutoffpl/ph_res_cutoffpl.dat')
+
+    N_sp=(data[0,1]-1)/2
+    spe_num=data[:,0]
+
+    data=np.vstack((data,data))
+    nph=data[0,1]
+    data[:,0]=np.arange(1,nph) #create new spe_num
+    spe_num=data[:,0]
+    phase=((spe_num-1)/(N_sp))
+
+    eqw=data[:,4]
+    eqw_low=eqw-data[:,5]
+    eqw_hi=data[:,6]-eqw
+
+    eqw=eqw*1e3
+    eqw_low=eqw_low*1e3
+    eqw_hi=eqw_hi*1e3
+    eqw_err=np.vstack((eqw_low, eqw_hi)).max(axis=0)
+
+    flux712=data[:,7]
+    flux712_low=flux712-data[:,8]
+    flux712_hi=data[:,9]-flux712
+
+    flux712=flux712/1e-8
+    flux712_hi=flux712_hi/1e-8
+    flux712_low=flux712_low/1e-8
+
+    flux712_err=np.vstack((flux712_low, flux712_hi)).max(axis=0)
+
+    figure()
+    fit=fit_sin(phase,eqw)
+    plt.plot(phase,eqw)
+    plt.plot(np.linspace(0,2,100),fit['fitfunc'](np.linspace(0,2,100)))
+
+
+#test eqw trials
+    N=500
+    eqw_trials=np.zeros(shape=(N,len(phase)))
+    for i in range(N):
+        eqw_trial=eqw+np.random.normal(loc=0,scale=eqw_err)
+        eqw_trials[i]=eqw_trial
+        #plt.plot(phase,eqw_trial,'gray',alpha=0.7)
+    plt.errorbar(phase,eqw,eqw_err,color='r',zorder=10,capsize=3)
+    plt.errorbar(phase,eqw_trials.mean(axis=0),eqw_trials.std(axis=0),color='c',zorder=15,capsize=3)
+
+    pearsonr_arr=np.zeros(N)
+
+    for i in range(N):
+        pearsonr_arr[i]=pearsonr(eqw_trials[i], flux712)[0]
+
+    N_trials=500
+
+    ccf_trials=np.zeros(shape=(N_trials,2*len(phase)))
+
+    test_eqw=np.zeros(N_trials)
+    test_eqw_ind=12
+
+    test_lag_of_max=np.zeros(N_trials)
+
+    for i in range(N_trials):
+        print(i)
+        eqw_trial=np.random.normal(loc=eqw,scale=eqw_err)
+        test_eqw[i]=eqw_trial[test_eqw_ind]
+        #flux_trial=np.random.normal(loc=flux712,scale=flux712_err)
+        flux_trial=flux712
+        CCF=CrossCorrelation(phase,eqw_trial,flux_trial,circular=1)
+        lag,ccf=CCF.calc_ccf()
+        test_lag_of_max[i]=lag[np.argmax(ccf)]
+        ccf_trials[i]=ccf
+
+    fig,ax=plt.subplots()
+    ax.errorbar(lag,ccf_trials.mean(axis=0),ccf_trials.std(axis=0)*1.645)
+
+    CCF=CrossCorrelation(phase,eqw,flux712,circular=True)
+    lag_orig,ccf_orig=CCF.calc_ccf()
+    ax.plot(lag_orig,ccf_orig,'r:')
+
+
+    plt.figure()
+    plt.plot(lag,ccf-ccf_trials.mean(axis=0),'k:')
+    plt.plot(lag,ccf-np.median(ccf_trials,axis=0),'c-.')
+
+    fig,ax=plt.subplots()
+    plt.hist(test_eqw,bins=50)
+    plt.axvline(eqw[test_eqw_ind])
+
+    plt.figure()
+    from scipy import stats
+    import seaborn as sns
+
+    sns.distplot(ccf_trials[:,11],fit=stats.norm,kde=0)
+    plt.axvline(ccf[11])
+
+    plt.figure()
+    from scipy import stats
+    import seaborn as sns
+
+    sns.distplot(test_lag_of_max,fit=stats.norm,kde=0)
+
+
+
+
 if __name__=='main':
 #%%test
     x=np.linspace(0,4,1000)*np.pi

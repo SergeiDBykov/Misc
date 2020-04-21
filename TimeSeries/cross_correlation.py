@@ -116,15 +116,82 @@ class CrossCorrelation():
         self.y2=y2
         self.circular=circular
 
-    def calc_ccf(self):
-        ccf=cross_correlation(self.x, self.y1, self.y2,circular=self.circular)
+    def calc_ccf(self,divide_by_mean=1, subtract_mean=1):
+        ccf=cross_correlation(self.x, self.y1, self.y2,circular=self.circular,
+                              divide_by_mean=divide_by_mean,subtract_mean=subtract_mean)
         self.lag,self.ccf=ccf
         return ccf
     def find_max(self):
         indeces=np.where(self.ccf==self.ccf.max())[0]
         return self.lag[indeces],self.ccf[indeces],indeces
 
+    def mc_errors(self,y1_err,y2_err,N_trials=1000,
+                  divide_by_mean=1, subtract_mean=1):
 
+        y1_trial=np.random.normal(loc=self.y1,scale=y1_err)
+        y2_trial=np.random.normal(loc=self.y2,scale=y2_err)
+
+        #ccf_trials=np.zeros(shape=(N_trials,2*len(phase)))
+
+        lag,ccf=cross_correlation(self.x, y1_trial, y2_trial,circular=self.circular,
+                              divide_by_mean=divide_by_mean,subtract_mean=subtract_mean)
+
+        ccf_trials=np.zeros(shape=(N_trials+1,lag.shape[0]))
+        ccf_trials[0]=ccf
+
+        lag_trials=np.zeros(shape=(N_trials))
+
+
+        for i in range(1,N_trials):
+            if np.floor(i/N_trials*100)%5 == 0.0:
+                print(f'Simulating the CCF: {np.floor(i/N_trials*100)} %')
+
+            y1_trial=np.random.normal(loc=self.y1,scale=y1_err)
+            y2_trial=np.random.normal(loc=self.y2,scale=y2_err)
+            CCF=CrossCorrelation(self.x,y1_trial,y2_trial,circular=self.circular)
+            lag,ccf=CCF.calc_ccf()
+            #lag_trials[i-1]=lag[lag>=0][np.argmax(ccf[(lag>=0) & (lag<)])] #i-1 because i do not use lag of the first iteration (which detemines the shape)
+            lag_trials[i-1]=lag[(lag>0) & (lag<=max(lag)/2)][np.argmax(ccf[(lag>0) & (lag<=max(lag)/2)])]
+            ccf_trials[i]=ccf
+        return lag,ccf_trials.mean(axis=0),ccf_trials.std(axis=0),lag_trials #returns lag,ccf_mean,ccf_std,lags
+
+
+
+
+'''
+    N_trials=1000
+
+    ccf_trials=np.zeros(shape=(N_trials,2*len(phase)))
+
+    test_eqw=np.zeros(N_trials)
+    test_eqw_ind=12
+
+    test_lag_of_max=np.zeros(N_trials)
+
+    for i in range(N_trials):
+        print(i)
+        eqw_trial=np.random.normal(loc=eqw,scale=eqw_err)
+        test_eqw[i]=eqw_trial[test_eqw_ind]
+        #flux_trial=np.random.normal(loc=flux712,scale=flux712_err)
+        flux_trial=flux712
+        CCF=CrossCorrelation(phase,eqw_trial,flux_trial,circular=1)
+        lag,ccf=CCF.calc_ccf()
+        test_lag_of_max[i]=lag[lag>=0][np.argmax(ccf[lag>=0])]
+        ccf_trials[i]=ccf
+
+    fig,ax=plt.subplots()
+    #ax.errorbar(lag,ccf_trials.mean(axis=0),ccf_trials.std(axis=0)*1.645)
+
+    CCF=CrossCorrelation(phase,eqw,flux712,circular=True)
+    lag_orig,ccf_orig=CCF.calc_ccf()
+    ax.plot(lag_orig,ccf_orig,'b-')
+    ax_tmp=ax.twinx()
+    ax_tmp.hist(test_lag_of_max,color='m',alpha=0.6,lw=0.8,histtype='step',bins=25)
+    ax_tmp.set_ylabel('peak distribution', color='m')
+
+
+
+'''
 
 
 
@@ -132,26 +199,28 @@ if __name__=='main':
 
     import numpy, scipy.optimize
 
-    def fit_sin(tt, yy):
-        '''Fit sin to the input time sequence, and return fitting parameters "amp", "omega", "phase", "offset", "freq", "period" and "fitfunc"'''
-        tt = numpy.array(tt)
-        yy = numpy.array(yy)
-        ff = numpy.fft.fftfreq(len(tt), (tt[1]-tt[0]))   # assume uniform spacing
-        Fyy = abs(numpy.fft.fft(yy))
-        guess_freq = abs(ff[numpy.argmax(Fyy[1:])+1])   # excluding the zero frequency "peak", which is related to offset
-        guess_amp = numpy.std(yy) * 2.**0.5
-        guess_offset = numpy.mean(yy)
-        guess = numpy.array([guess_amp, 2.*numpy.pi*guess_freq, 0., guess_offset])
+    # def fit_sin(tt, yy):
+    #     '''Fit sin to the input time sequence, and return fitting parameters "amp", "omega", "phase", "offset", "freq", "period" and "fitfunc"'''
+    #     tt = numpy.array(tt)
+    #     yy = numpy.array(yy)
+    #     ff = numpy.fft.fftfreq(len(tt), (tt[1]-tt[0]))   # assume uniform spacing
+    #     Fyy = abs(numpy.fft.fft(yy))
+    #     guess_freq = abs(ff[numpy.argmax(Fyy[1:])+1])   # excluding the zero frequency "peak", which is related to offset
+    #     guess_amp = numpy.std(yy) * 2.**0.5
+    #     guess_offset = numpy.mean(yy)
+    #     guess = numpy.array([guess_amp, 2.*numpy.pi*guess_freq, 0., guess_offset])
 
-        def sinfunc(t, A, w, p, c):  return A * numpy.sin(w*t + p) + c
-        popt, pcov = scipy.optimize.curve_fit(sinfunc, tt, yy, p0=guess)
-        A, w, p, c = popt
-        f = w/(2.*numpy.pi)
-        fitfunc = lambda t: A * numpy.sin(w*t + p) + c
-        return {"amp": A, "omega": w, "phase": p, "offset": c, "freq": f, "period": 1./f, "fitfunc": fitfunc, "maxcov": numpy.max(pcov), "rawres": (guess,popt,pcov)}
+    #     def sinfunc(t, A, w, p, c):  return A * numpy.sin(w*t + p) + c
+    #     popt, pcov = scipy.optimize.curve_fit(sinfunc, tt, yy, p0=guess)
+    #     A, w, p, c = popt
+    #     f = w/(2.*numpy.pi)
+    #     fitfunc = lambda t: A * numpy.sin(w*t + p) + c
+    #     return {"amp": A, "omega": w, "phase": p, "offset": c, "freq": f, "period": 1./f, "fitfunc": fitfunc, "maxcov": numpy.max(pcov), "rawres": (guess,popt,pcov)}
 
-    #data=np.genfromtxt('/Users/s.bykov/work/xray_pulsars/rxte/results/out90089-11-03-01G/products/fasebin/cutoffpl/ph_res_cutoffpl.dat')
-    data=np.genfromtxt('/Users/s.bykov/work/xray_pulsars/rxte/results/out90427-01-03-02/products/fasebin/cutoffpl/ph_res_cutoffpl.dat')
+
+
+    ObsID='90089-11-01-03' #90089-11-03-01G  #90427-01-03-02 #90089-11-02-06  #90089-11-01-03
+    data=np.genfromtxt(f'/Users/s.bykov/work/xray_pulsars/rxte/results/out{ObsID}/products/fasebin/cutoffpl/ph_res_cutoffpl.dat')
 
     N_sp=(data[0,1]-1)/2
     spe_num=data[:,0]
@@ -181,10 +250,10 @@ if __name__=='main':
 
     flux712_err=np.vstack((flux712_low, flux712_hi)).max(axis=0)
 
-    figure()
-    fit=fit_sin(phase,eqw)
-    plt.plot(phase,eqw)
-    plt.plot(np.linspace(0,2,100),fit['fitfunc'](np.linspace(0,2,100)))
+    # plt.figure()
+    # fit=fit_sin(phase,eqw)
+    # plt.plot(phase,eqw)
+    # plt.plot(np.linspace(0,2,100),fit['fitfunc'](np.linspace(0,2,100)))
 
 
 #test eqw trials
@@ -202,7 +271,7 @@ if __name__=='main':
     for i in range(N):
         pearsonr_arr[i]=pearsonr(eqw_trials[i], flux712)[0]
 
-    N_trials=500
+    N_trials=1000
 
     ccf_trials=np.zeros(shape=(N_trials,2*len(phase)))
 
@@ -219,37 +288,39 @@ if __name__=='main':
         flux_trial=flux712
         CCF=CrossCorrelation(phase,eqw_trial,flux_trial,circular=1)
         lag,ccf=CCF.calc_ccf()
-        test_lag_of_max[i]=lag[np.argmax(ccf)]
+        test_lag_of_max[i]=lag[lag>=0][np.argmax(ccf[lag>=0])]
         ccf_trials[i]=ccf
 
     fig,ax=plt.subplots()
-    ax.errorbar(lag,ccf_trials.mean(axis=0),ccf_trials.std(axis=0)*1.645)
+    #ax.errorbar(lag,ccf_trials.mean(axis=0),ccf_trials.std(axis=0)*1.645)
 
     CCF=CrossCorrelation(phase,eqw,flux712,circular=True)
     lag_orig,ccf_orig=CCF.calc_ccf()
-    ax.plot(lag_orig,ccf_orig,'r:')
+    ax.plot(lag_orig,ccf_orig,'b-')
+    ax_tmp=ax.twinx()
+    ax_tmp.hist(test_lag_of_max,color='m',alpha=0.6,lw=0.8,histtype='step',bins=25)
+    ax_tmp.set_ylabel('peak distribution', color='m')
 
+    # plt.figure()
+    # plt.plot(lag,ccf-ccf_trials.mean(axis=0),'k:')
+    # plt.plot(lag,ccf-np.median(ccf_trials,axis=0),'c-.')
 
-    plt.figure()
-    plt.plot(lag,ccf-ccf_trials.mean(axis=0),'k:')
-    plt.plot(lag,ccf-np.median(ccf_trials,axis=0),'c-.')
+    # fig,ax=plt.subplots()
+    # plt.hist(test_eqw,bins=50)
+    # plt.axvline(eqw[test_eqw_ind])
 
-    fig,ax=plt.subplots()
-    plt.hist(test_eqw,bins=50)
-    plt.axvline(eqw[test_eqw_ind])
+    # plt.figure()
+    # from scipy import stats
+    # import seaborn as sns
+
+    # sns.distplot(ccf_trials[:,11],fit=stats.norm,kde=0)
+    # plt.axvline(ccf[11])
 
     plt.figure()
     from scipy import stats
     import seaborn as sns
-
-    sns.distplot(ccf_trials[:,11],fit=stats.norm,kde=0)
-    plt.axvline(ccf[11])
-
-    plt.figure()
-    from scipy import stats
-    import seaborn as sns
-
-    sns.distplot(test_lag_of_max,fit=stats.norm,kde=0)
+    from scipy.stats import norm
+    ax.twinx().hist(test_lag_of_max)#,fit=norm, kde=False,bins=25,hist=1)
 
 
 

@@ -8,10 +8,10 @@ import stingray
 import os
 
 
-os.chdir('/Users/s.bykov/work/xray_pulsars/rxte/results/out90089-11-04-03/products/se_0.1sec_lc')
+os.chdir('/Users/s.bykov/work/xray_pulsars/rxte/results/out90089-11-03-01G/products/lc_sa/')
 
-lc1=fits.open('ch1314.lc')
-lc2=fits.open('ch15.lc')
+lc1=fits.open('ch1517.lc_bary')
+lc2=fits.open('ch1837.lc_bary')
 #lc2=fits.open('ch1819.lc')
 
 from stingray import Lightcurve
@@ -20,14 +20,14 @@ lc=Lightcurve(lc1[1].data['time'], lc1[1].data['rate'],
 lc1=lc.rebin(0.15)
 
 from stingray.events import EventList
-evt1=EventList.from_lc(lc1)
+#evt1=EventList.from_lc(lc1)
 #evt1.simulate_energies([[5.5],[1]])
 
 lc=Lightcurve(lc2[1].data['time'], lc2[1].data['rate'],
               err=lc2[1].data['error'],input_counts=0)
 lc2=lc.rebin(0.15)
 
-evt2=EventList.from_lc(lc2)
+#evt2=EventList.from_lc(lc2)
 #evt2.simulate_energies([6.5,1])
 #evt=evt1.join(evt2)
 
@@ -35,7 +35,7 @@ evt2=EventList.from_lc(lc2)
 #%% cross
 from stingray import Crossspectrum,AveragedCrossspectrum
 
-avg_cs=AveragedCrossspectrum(lc1,lc2,5)
+avg_cs=AveragedCrossspectrum(lc1,lc2,20)
 
 freq_lags, freq_lags_err = avg_cs.time_lag()
 

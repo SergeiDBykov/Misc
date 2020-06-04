@@ -327,18 +327,20 @@ if __name__=='main':
 
 if __name__=='main':
 #%%test
-    x=np.linspace(0,4,1000)*np.pi
+    x=np.linspace(0,20,1000)*np.pi
     #y1=np.sin(x)+np.random.normal(x-x,0.5)
     #y2=np.cos(x)+np.random.normal(x-x,0.5)
     def gaussian(x, mu, sig):
         return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
 
-    y1=gaussian(x, 2, 0.4)
-    y2=gaussian(x, 3, 0.4)
+    y1=gaussian(x, 20, 0.4)
+    y2=gaussian(x, 10, 0.4)
     dt=np.median(np.diff(x))
     fig,[ax1,ax2]=plt.subplots(2,1)
     fig.subplots_adjust(hspace=0.5)
-    ax1.plot(x,y1,x,y2)
+    ax1.plot(x,y1,label='y1')
+    ax1.plot(x,y2,label='y2')
+    ax1.legend()
 
 
     CCF_obj=CrossCorrelation(x, y1, y2,circular=0)
@@ -346,11 +348,11 @@ if __name__=='main':
 
     ax2.plot(CCF_obj.lag,CCF_obj.ccf,'g-.',ms=1)
 
-    CCF_obj=CrossCorrelation(x, y1, y2,circular=1)
-    CCF_obj.calc_ccf()
-    ax2.plot(CCF_obj.lag,CCF_obj.ccf,'b-.',ms=1)
-    plt.show()
-    max_stuff=CCF_obj.find_max()
+    # CCF_obj=CrossCorrelation(x, y1, y2,circular=1)
+    # CCF_obj.calc_ccf()
+    # ax2.plot(CCF_obj.lag,CCF_obj.ccf,'b-.',ms=1)
+    # plt.show()
+    # max_stuff=CCF_obj.find_max()
 
     fig,ax=plt.subplots()
 
@@ -358,3 +360,137 @@ if __name__=='main':
 
     plt.show()
 
+
+
+
+
+#%%test 2
+    x=np.linspace(0,100,1000)
+    y1=2+np.sin(x)+np.random.normal(x-x,0.5)
+    y2=np.random.normal(x-x,0.5)
+
+    dt=np.median(np.diff(x))
+    fig,[ax1,ax2]=plt.subplots(2,1)
+    fig.subplots_adjust(hspace=0.5)
+    ax1.plot(x,y1,label='y1')
+    ax1.plot(x,y2,label='y2')
+    ax1.legend()
+
+
+    CCF_obj=CrossCorrelation(x, y1, y2,circular=0)
+    CCF_obj.calc_ccf()
+
+    ax2.plot(CCF_obj.lag,CCF_obj.ccf,'g-.',ms=1)
+
+    # CCF_obj=CrossCorrelation(x, y1, y2,circular=1)
+    # CCF_obj.calc_ccf()
+    # ax2.plot(CCF_obj.lag,CCF_obj.ccf,'b-.',ms=1)
+    # plt.show()
+    # max_stuff=CCF_obj.find_max()
+
+    #fig,ax=plt.subplots()
+
+    #ax.plot(CCF_obj.y1,np.roll(CCF_obj.y2,max_stuff[-1][-1]))
+
+
+
+    tmp=np.vstack((x,y1,y1-y1+0.5)).T
+    np.savetxt(f'fits_test/y1.txt',tmp,delimiter=' ')
+
+    tmp=np.vstack((x,y2,y2-y2+0.5)).T
+    np.savetxt(f'fits_test/y2.txt',tmp,delimiter=' ')
+
+
+    ccf_qdp=np.genfromtxt('fits_test/ccf.qdp',skip_header=3)
+
+
+    fig,ax=plt.subplots()
+    ax.plot(-CCF_obj.lag,CCF_obj.ccf,color='k',alpha=0.6,label='my crosscorr')
+    ax.plot(ccf_qdp[:,0],ccf_qdp[:,2],color='r',alpha=0.3,label='heasoft crosscorr')
+    ax.legend()
+    plt.show()
+    # from astropy.table import table
+    # from astropy.io import fits
+
+    # #save y1 array
+    # hdu=fits.PrimaryHDU()
+    # c1=fits.Column(name='TIME',format='1D',unit='s',array=x)
+    # c2=fits.Column(name='RATE',format='1D',unit='count/s',array=y1)
+
+    # cols=fits.ColDefs([c1,c2])
+    # cnthdu=fits.BinTableHDU.from_columns(cols)
+    # cnthdu.name='LIGHTCURVE'
+    # cnthdu.header['START']=x[0]
+    # cnthdu.header['STOP']=x[-1]
+    # cnthdu.header['TIMEDEL']=0
+    # hdulist=fits.HDUList([hdu,cnthdu])
+    # hdulist.writeto('fits_test/y1.fits')
+    # hdulist.close()
+
+
+    # #save y2 array
+    # hdu=fits.PrimaryHDU()
+    # c1=fits.Column(name='TIME',format='1D',unit='s',array=x)
+    # c2=fits.Column(name='RATE',format='1D',unit='count/s',array=y2)
+
+    # cols=fits.ColDefs([c1,c2])
+    # cnthdu=fits.BinTableHDU.from_columns(cols)
+    # cnthdu.name='LIGHTCURVE'
+    # cnthdu.header['START']=x[0]
+    # cnthdu.header['STOP']=x[-1]
+    # cnthdu.header['TIMEDEL']=0
+    # hdulist=fits.HDUList([hdu,cnthdu])
+    # hdulist.writeto('fits_test/y2.fits')
+    # hdulist.close()
+
+
+#%%test 3
+    x=np.linspace(0,100,1000)
+    y2=np.random.normal(x-x,0.5)
+
+    def gaussian(x, mu, sig):
+        return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
+
+    y1=gaussian(x, 20, 0.4)*10+gaussian(x, 60, 2)*5
+
+
+    dt=np.median(np.diff(x))
+    fig,[ax1,ax2]=plt.subplots(2,1)
+    fig.subplots_adjust(hspace=0.5)
+    ax1.plot(x,y1,label='y1')
+    ax1.plot(x,y2,label='y2')
+    ax1.legend()
+
+
+    CCF_obj=CrossCorrelation(x, y1, y2,circular=0)
+    CCF_obj.calc_ccf()
+
+    ax2.plot(CCF_obj.lag,CCF_obj.ccf,'g-.',ms=1)
+
+    # CCF_obj=CrossCorrelation(x, y1, y2,circular=1)
+    # CCF_obj.calc_ccf()
+    # ax2.plot(CCF_obj.lag,CCF_obj.ccf,'b-.',ms=1)
+    # plt.show()
+    # max_stuff=CCF_obj.find_max()
+
+    #fig,ax=plt.subplots()
+
+    #ax.plot(CCF_obj.y1,np.roll(CCF_obj.y2,max_stuff[-1][-1]))
+
+
+
+    tmp=np.vstack((x,y1,y1-y1+0.5)).T
+    np.savetxt(f'fits_test_gauss/y1.txt',tmp,delimiter=' ')
+
+    tmp=np.vstack((x,y2,y2-y2+0.5)).T
+    np.savetxt(f'fits_test_gauss/y2.txt',tmp,delimiter=' ')
+
+
+    ccf_qdp=np.genfromtxt('fits_test_gauss/ccf.qdp',skip_header=3)
+
+
+    fig,ax=plt.subplots()
+    ax.plot(CCF_obj.lag,CCF_obj.ccf,color='k',alpha=0.6,label='my crosscorr')
+    ax.plot(ccf_qdp[:,0],ccf_qdp[:,2],color='r',alpha=0.3,label='heasoft crosscorr')
+    ax.legend()
+    plt.show()

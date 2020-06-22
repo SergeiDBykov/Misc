@@ -155,6 +155,30 @@ class CrossCorrelation():
             ccf_trials[i]=ccf
         return lag,ccf_trials.mean(axis=0),ccf_trials.std(axis=0),lag_trials #returns lag,ccf_mean,ccf_std,lags
 
+    def mc_errors_ccfs(self,y1_err,y2_err,N_trials=500,
+                  divide_by_mean=1, subtract_mean=1):
+
+        y1_trial=np.random.normal(loc=self.y1,scale=y1_err)
+        y2_trial=np.random.normal(loc=self.y2,scale=y2_err)
+
+        #ccf_trials=np.zeros(shape=(N_trials,2*len(phase)))
+
+        lag,ccf=cross_correlation(self.x, y1_trial, y2_trial,circular=self.circular,
+                              divide_by_mean=divide_by_mean,subtract_mean=subtract_mean)
+
+        ccf_trials=np.zeros(shape=(N_trials+1,lag.shape[0]))
+        ccf_trials[0]=ccf
+        lag_trials=np.zeros(shape=(N_trials))
+        for i in range(1,N_trials):
+            if np.floor(i/N_trials*100)%5 == 0.0:
+                print(f'Simulating the CCF: {np.floor(i/N_trials*100)} %')
+
+            y1_trial=np.random.normal(loc=self.y1,scale=y1_err)
+            y2_trial=np.random.normal(loc=self.y2,scale=y2_err)
+            CCF=CrossCorrelation(self.x,y1_trial,y2_trial,circular=self.circular)
+            lag,ccf=CCF.calc_ccf()
+            ccf_trials[i]=ccf
+        return lag,ccf_trials
 
 
 

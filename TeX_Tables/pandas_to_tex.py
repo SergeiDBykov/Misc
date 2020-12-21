@@ -127,9 +127,8 @@ def save_latex_table(df_tex,savepath='./log.tex',
         if columns_to_write=='DEFAULT' and columns_names=='DEFAULT':
             columns_to_write=list(df_tex.columns.values)
             columns_names=columns_to_write
-
         return df_tex.to_latex(buf=savepath,escape = False, index = transpose,
-                        columns=columns_to_write,header=columns_names)
+                        columns=columns_to_write,header=columns_names)#.replace('\\toprule', '\\hline').replace('\\midrule', '\\hline').replace('\\bottomrule','\\hline')
 
     if  transpose:
         '''
@@ -150,4 +149,4 @@ def save_latex_table(df_tex,savepath='./log.tex',
         df_tex=df_tex.transpose()
 
         return df_tex.to_latex(buf=savepath,escape = False, index = transpose,
-                        )
+                        )#.replace('\\toprule', '\\hline').replace('\\midrule', '\\hline').replace('\\bottomrule','\\hline')
